@@ -1,10 +1,8 @@
+
 import os
 import re
-import ssl
-import smtplib
-import socket
+import requests
 
-from email.message import EmailMessage
 from dotenv import load_dotenv
 
 
@@ -15,11 +13,18 @@ from dotenv import load_dotenv
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ENV_PATH = os.path.join(BASE_DIR, ".env")
 
-load_dotenv(dotenv_path=ENV_PATH, override=True)
+load_dotenv(dotenv_path=ENV_PATH)
 
 
 # --------------------------------
-# EMAIL VALIDATION
+# BREVO API SETTINGS
+# --------------------------------
+
+BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
+
+
+# --------------------------------
+# VALIDATE EMAIL
 # --------------------------------
 
 def validate_email(email):
@@ -33,19 +38,39 @@ def validate_email(email):
 
 
 # --------------------------------
-# CREATE EMAIL MESSAGE
+# SEND OTP USING BREVO HTTPS API
 # --------------------------------
 
-def create_email_message(recipient_email, otp):
+def send_otp_email(recipient_email, otp):
 
-    message = EmailMessage()
+    if not validate_email(recipient_email):
+        print("ERROR: Invalid recipient email.")
+        return False
 
-    message["Subject"] = "Your SecureLearn OTP Verification Code"
-    message["From"] = os.getenv("OTP_SENDER_EMAIL")
-    message["To"] = recipient_email
+    otp = str(otp)
 
-    message.set_content(
-        f"""Hello,
+    if len(otp) != 6 or not otp.isdigit():
+        print("ERROR: Invalid OTP format.")
+        return False
+
+    api_key = os.getenv("BREVO_API_KEY")
+    sender_email = os.getenv("BREVO_SENDER_EMAIL")
+
+    if not api_key or not sender_email:
+        print("ERROR: Brevo email settings missing.")
+        return False
+
+    if not validate_email(sender_email):
+        print("ERROR: Invalid Brevo sender email.")
+        return False
+
+    headers = {
+        "api-key": api_key,
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+
+    message = f"""Hello,
 
 Your SecureLearn OTP verification code is: {otp}
 
@@ -56,157 +81,42 @@ Please do not share this code with anyone.
 Thank you,
 SecureLearn Cybersecurity Learning Portal
 """
-    )
 
-    return message
-
-
-# --------------------------------
-# SEND USING PORT 587
-# --------------------------------
-
-def send_using_tls(sender_email, app_password, message):
-
-    print("Trying Gmail SMTP Port 587...", flush=True)
-
-    context = ssl.create_default_context()
-
-    with smtplib.SMTP(
-        "smtp.gmail.com",
-        587,
-        timeout=30
-    ) as server:
-
-        server.ehlo()
-        server.starttls(context=context)
-        server.ehlo()
-
-        print("Authenticating Gmail using TLS...", flush=True)
-
-        server.login(sender_email, app_password)
-
-        server.send_message(message)
-
-    return True
-
-
-# --------------------------------
-# SEND USING PORT 465
-# --------------------------------
-
-def send_using_ssl(sender_email, app_password, message):
-
-    print("Trying Gmail SMTP Port 465...", flush=True)
-
-    context = ssl.create_default_context()
-
-    with smtplib.SMTP_SSL(
-        "smtp.gmail.com",
-        465,
-        timeout=30,
-        context=context
-    ) as server:
-
-        print("Authenticating Gmail using SSL...", flush=True)
-
-        server.login(sender_email, app_password)
-
-        server.send_message(message)
-
-    return True
-
-
-# --------------------------------
-# MAIN OTP EMAIL FUNCTION
-# --------------------------------
-
-def send_otp_email(recipient_email, otp):
-
-    if not validate_email(recipient_email):
-
-        print("ERROR: Invalid recipient email.")
-
-        return False
-
-    if (
-        not isinstance(otp, str)
-        or len(otp) != 6
-        or not otp.isdigit()
-    ):
-
-        print("ERROR: Invalid OTP format.")
-
-        return False
-
-    sender_email = os.getenv("OTP_SENDER_EMAIL")
-    app_password = os.getenv("OTP_EMAIL_APP_PASSWORD")
-
-    if not sender_email or not app_password:
-
-        print("ERROR: Gmail credentials missing in .env")
-
-        return False
-
-    if not validate_email(sender_email):
-
-        print("ERROR: Invalid sender Gmail address.")
-
-        return False
-
-    app_password = app_password.replace(" ", "")
-
-    message = create_email_message(
-        recipient_email,
-        otp
-    )
-
-    # --------------------------------
-    # TRY PORT 587
-    # --------------------------------
+    payload = {
+        "sender": {
+            "name": "SecureLearn",
+            "email": sender_email
+        },
+        "to": [
+            {
+                "email": recipient_email
+            }
+        ],
+        "subject": "Your SecureLearn OTP Verification Code",
+        "textContent": message
+    }
 
     try:
-
-        send_using_tls(
-            sender_email,
-            app_password,
-            message
+        response = requests.post(
+            BREVO_API_URL,
+            headers=headers,
+            json=payload,
+            timeout=20
         )
 
-        print("SUCCESS: OTP sent using Port 587.")
+        if response.status_code == 201:
+            print("SUCCESS: Brevo accepted OTP email.")
+            return True
 
-        return True
-
-    except (smtplib.SMTPException, OSError) as error:
-
-        print("Port 587 failed.")
-        print("Error:", type(error).__name__)
-
-    # --------------------------------
-    # TRY PORT 465
-    # --------------------------------
-
-    try:
-
-        send_using_ssl(
-            sender_email,
-            app_password,
-            message
+        print(
+            "ERROR: Brevo API returned status",
+            response.status_code
         )
+        return False
 
-        print("SUCCESS: OTP sent using Port 465.")
-
-        return True
-
-    except (smtplib.SMTPException, OSError) as error:
-
-        print("Port 465 failed.")
-        print("Error:", type(error).__name__)
-
-    except Exception as error:
-
-        print("Unexpected Port 465 error:")
-        print(type(error).__name__)
-
-    print("ERROR: Unable to send OTP through Gmail SMTP.")
-
-    return False
+    except requests.RequestException as error:
+        print(
+            "ERROR: Brevo connection failed:",
+            type(error).__name__
+        )
+        return False
