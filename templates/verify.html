@@ -1,0 +1,121 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify OTP | SecureLearn</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body class="otp-page">
+
+<div class="otp-layout">
+
+    <section class="otp-brand-panel">
+        <div class="otp-brand">
+            <span class="otp-brand-logo">🛡️</span>
+            <div>
+                <h2>SecureLearn</h2>
+                <p>Cybersecurity Learning Portal</p>
+            </div>
+        </div>
+
+        <div class="otp-brand-content">
+            <div class="otp-illustration">🔐</div>
+            <span class="otp-eyebrow">IDENTITY VERIFICATION</span>
+            <h1>One More Step<br>to Stay Secure.</h1>
+            <p>
+                Your account is protected with email-based
+                one-time password verification.
+            </p>
+
+            <div class="otp-feature">✓ Secure Email Verification</div>
+            <div class="otp-feature">✓ Time-Limited OTP</div>
+            <div class="otp-feature">✓ Protected Account Access</div>
+        </div>
+
+        <div class="otp-brand-footer">
+            SecureLearn • Secure Authentication
+        </div>
+    </section>
+
+    <main class="otp-form-panel">
+        <div class="otp-form-card">
+
+            <div class="otp-lock-icon">✉️</div>
+
+            <span class="otp-step">STEP 02 / 02</span>
+            <h1>Verify Your Identity</h1>
+            <p class="otp-description">
+                Enter the 6-digit verification code sent
+                to your registered email address.
+            </p>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('verify') }}">
+                <input type="hidden"
+                       name="csrf_token"
+                       value="{{ csrf_token() }}">
+
+                <label for="otp">Verification Code</label>
+
+                <input
+                    type="text"
+                    id="otp"
+                    name="otp"
+                    class="otp-code-input"
+                    placeholder="000000"
+                    maxlength="6"
+                    minlength="6"
+                    pattern="[0-9]{6}"
+                    inputmode="numeric"
+                    autocomplete="one-time-code"
+                    required
+                >
+
+                <p class="otp-hint">
+                    Enter the six numbers from your email.
+                </p>
+
+                <button type="submit" class="otp-verify-btn">
+                    Verify & Continue →
+                </button>
+            </form>
+
+            <div class="otp-divider">
+                <span>Didn't receive the code?</span>
+            </div>
+
+            <form method="POST" action="{{ url_for('resend_otp') }}" class="otp-resend-form">
+                <input type="hidden"
+                       name="csrf_token"
+                       value="{{ csrf_token() }}">
+
+                <button type="submit" class="otp-resend-btn">
+                    ↻ Resend Verification Code
+                </button>
+            </form>
+
+            <a href="{{ url_for('login') }}" class="otp-back-link">
+                ← Back to Login
+            </a>
+
+            <div class="otp-security-note">
+                🛡️ Never share your verification code with anyone.
+            </div>
+
+        </div>
+    </main>
+
+</div>
+
+</body>
+</html>

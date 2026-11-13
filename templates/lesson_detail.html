@@ -1,0 +1,255 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ lesson.title }} | SecureLearn</title>
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body class="dashboard-page lesson-detail-page">
+
+<div class="app-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+        <div class="sidebar-brand">
+            <div class="brand-icon">🛡️</div>
+            <div>
+                <h2>SecureLearn</h2>
+                <span>Cybersecurity Portal</span>
+            </div>
+        </div>
+
+        <div class="sidebar-label">MAIN MENU</div>
+
+        <nav class="sidebar-nav">
+
+            <a href="{{ url_for('dashboard') }}">
+                <span>▦</span> Dashboard
+            </a>
+
+            <a href="{{ url_for('learning') }}" class="active">
+                <span>📚</span> OWASP Learning
+            </a>
+
+            <a href="{{ url_for('quiz') }}">
+                <span>📝</span> Security Quiz
+            </a>
+
+            <a href="{{ url_for('progress') }}">
+                <span>📊</span> My Progress
+            </a>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <div class="sidebar-security">
+                <span>🟢</span>
+                <div>
+                    <strong>Secure Session</strong>
+                    <small>OTP Authenticated</small>
+                </div>
+            </div>
+
+            <form method="POST"
+                  action="{{ url_for('logout') }}">
+
+                <input type="hidden"
+                       name="csrf_token"
+                       value="{{ csrf_token() }}">
+
+                <button type="submit" class="sidebar-logout">
+                    ↪ Logout
+                </button>
+
+            </form>
+
+        </div>
+
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="dashboard-main">
+
+        <header class="topbar">
+
+            <div>
+                <span class="topbar-subtitle">
+                    CYBERSECURITY EDUCATION
+                </span>
+                <h2>Lesson Details</h2>
+            </div>
+
+            <div class="topbar-user">
+                <span class="lesson-topbar-badge">
+                    📖 Learning Mode
+                </span>
+            </div>
+
+        </header>
+
+        <div class="dashboard-content">
+
+            <!-- BREADCRUMB -->
+            <div class="lesson-breadcrumb">
+                <a href="{{ url_for('dashboard') }}">
+                    Dashboard
+                </a>
+                <span>›</span>
+                <a href="{{ url_for('learning') }}">
+                    OWASP Learning
+                </a>
+                <span>›</span>
+                <span>Lesson {{ lesson.id }}</span>
+            </div>
+
+            <!-- LESSON HEADER -->
+            <section class="lesson-hero">
+
+                <div class="lesson-hero-content">
+
+                    <span class="lesson-hero-label">
+                        🛡️ OWASP SECURITY LESSON
+                    </span>
+
+                    <h1>{{ lesson.title }}</h1>
+
+                    <p>{{ lesson.description }}</p>
+
+                    <div class="lesson-hero-meta">
+                        <span>📚 Lesson {{ lesson.id }}</span>
+                        <span>🔐 Web Application Security</span>
+                    </div>
+
+                </div>
+
+                <div class="lesson-hero-art">
+                    📖
+                </div>
+
+            </section>
+
+            <!-- LESSON CONTENT -->
+            <div class="lesson-detail-grid">
+
+                <article class="lesson-article">
+
+                    <div class="lesson-article-header">
+
+                        <div class="lesson-article-icon">
+                            📘
+                        </div>
+
+                        <div>
+                            <span>LEARNING MATERIAL</span>
+                            <h2>Understanding This Security Risk</h2>
+                        </div>
+
+                    </div>
+
+                    <div class="lesson-article-body">
+
+                        <div class="lesson-content">
+                            {{ lesson.content }}
+                        </div>
+
+                    </div>
+
+                    <div class="lesson-article-footer">
+                        <span>🛡️ SecureLearn Education</span>
+                        <span>OWASP Learning Module</span>
+                    </div>
+
+                </article>
+
+                <!-- COMPLETION PANEL -->
+                <aside class="lesson-side-panel">
+
+                    <div class="lesson-completion-card">
+
+                        <div class="lesson-completion-icon">
+                            🎯
+                        </div>
+
+                        <h3>Complete This Lesson</h3>
+
+                        <p>
+                            Finished reading? Mark this lesson
+                            as completed to update your learning
+                            progress.
+                        </p>
+
+                        <form method="POST"
+                              action="{{ url_for('complete_lesson', lesson_id=lesson.id) }}">
+
+                            <input type="hidden"
+                                   name="csrf_token"
+                                   value="{{ csrf_token() }}">
+
+                            <button type="submit"
+                                    class="lesson-complete-button">
+                                ✓ Mark as Completed
+                            </button>
+
+                        </form>
+
+                    </div>
+
+                    <div class="lesson-navigation-card">
+
+                        <h3>Quick Navigation</h3>
+
+                        <a href="{{ url_for('learning') }}">
+                            📚 All Lessons <span>→</span>
+                        </a>
+
+                        <a href="{{ url_for('progress') }}">
+                            📊 My Progress <span>→</span>
+                        </a>
+
+                        <a href="{{ url_for('quiz') }}">
+                            📝 Take Quiz <span>→</span>
+                        </a>
+
+                        <a href="{{ url_for('dashboard') }}">
+                            🏠 Dashboard <span>→</span>
+                        </a>
+
+                    </div>
+
+                    <div class="lesson-tip-card">
+                        <div>💡 Security Tip</div>
+                        <p>
+                            Understanding vulnerabilities is
+                            the first step toward building
+                            safer web applications.
+                        </p>
+                    </div>
+
+                </aside>
+
+            </div>
+
+            <div class="lesson-back-link">
+                <a href="{{ url_for('learning') }}">
+                    ← Back to All Lessons
+                </a>
+            </div>
+
+            <div class="dashboard-footer">
+                © SecureLearn | Cybersecurity Learning Portal
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+</body>
+</html>

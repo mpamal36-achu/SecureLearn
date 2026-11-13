@@ -1,0 +1,226 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cybersecurity Quiz | SecureLearn</title>
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body class="dashboard-page quiz-page">
+
+<div class="app-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+        <div class="sidebar-brand">
+            <div class="brand-icon">🛡️</div>
+            <div>
+                <h2>SecureLearn</h2>
+                <span>Cybersecurity Portal</span>
+            </div>
+        </div>
+
+        <div class="sidebar-label">MAIN MENU</div>
+
+        <nav class="sidebar-nav">
+            <a href="{{ url_for('dashboard') }}">
+                <span>▦</span> Dashboard
+            </a>
+
+            <a href="{{ url_for('learning') }}">
+                <span>📚</span> OWASP Learning
+            </a>
+
+            <a href="{{ url_for('quiz') }}" class="active">
+                <span>📝</span> Security Quiz
+            </a>
+
+            <a href="{{ url_for('progress') }}">
+                <span>📊</span> My Progress
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <div class="sidebar-security">
+                <span>🟢</span>
+                <div>
+                    <strong>Secure Session</strong>
+                    <small>OTP Authenticated</small>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ url_for('logout') }}">
+                <input type="hidden"
+                       name="csrf_token"
+                       value="{{ csrf_token() }}">
+                <button type="submit" class="sidebar-logout">
+                    ↪ Logout
+                </button>
+            </form>
+
+        </div>
+
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="dashboard-main">
+
+        <header class="topbar">
+            <div>
+                <span class="topbar-subtitle">
+                    CYBERSECURITY EDUCATION
+                </span>
+                <h2>Security Quiz</h2>
+            </div>
+
+            <div class="topbar-user">
+                <span class="quiz-topbar-badge">
+                    📝 Knowledge Assessment
+                </span>
+            </div>
+        </header>
+
+        <div class="dashboard-content">
+
+            <!-- QUIZ BANNER -->
+            <section class="quiz-hero">
+
+                <div>
+                    <span class="quiz-hero-label">
+                        ✦ TEST YOUR KNOWLEDGE
+                    </span>
+
+                    <h1>Cybersecurity Quiz</h1>
+
+                    <p>
+                        Challenge yourself with questions about
+                        OWASP Top 10 web application security risks.
+                    </p>
+
+                    <div class="quiz-hero-info">
+                        <span>📚 OWASP Top 10</span>
+                        <span>📝 {{ questions | length }} Questions</span>
+                    </div>
+                </div>
+
+                <div class="quiz-hero-art">🎯</div>
+
+            </section>
+
+            <!-- INSTRUCTIONS -->
+            <div class="quiz-instructions">
+                <span class="quiz-instructions-icon">💡</span>
+                <div>
+                    <strong>Before You Begin</strong>
+                    <p>
+                        Read each question carefully and select
+                        one answer. Submit your quiz when finished.
+                    </p>
+                </div>
+            </div>
+
+            <!-- FLASH MESSAGES -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% for category, message in messages %}
+                    <div class="quiz-flash flash-message {{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endwith %}
+
+            <!-- QUIZ FORM -->
+            <form method="POST"
+                  action="{{ url_for('quiz') }}"
+                  class="secure-quiz-form">
+
+                <input type="hidden"
+                       name="csrf_token"
+                       value="{{ csrf_token() }}">
+
+                {% for question in questions %}
+
+                <fieldset class="secure-question-card">
+
+                    <legend class="secure-question-number">
+                        QUESTION {{ loop.index }} OF {{ questions | length }}
+                    </legend>
+
+                    <h3>{{ loop.index }}. {{ question.question }}</h3>
+
+                    <div class="secure-question-options">
+
+                        {% for option in question.options %}
+
+                        <label class="secure-quiz-option">
+
+                            <input
+                                type="radio"
+                                name="question_{{ question.index }}"
+                                value="{{ loop.index0 }}"
+                                required
+                            >
+
+                            <span class="secure-option-letter">
+                                {{ "ABCD"[loop.index0] if loop.index0 < 4 else loop.index }}
+                            </span>
+
+                            <span class="secure-option-text">
+                                {{ option }}
+                            </span>
+
+                        </label>
+
+                        {% endfor %}
+
+                    </div>
+
+                </fieldset>
+
+                {% endfor %}
+
+                <!-- SUBMIT SECTION -->
+                <div class="secure-quiz-submit">
+
+                    <div>
+                        <h3>Ready to see your results?</h3>
+                        <p>
+                            Make sure you've answered every question.
+                        </p>
+                    </div>
+
+                    <button type="submit"
+                            class="secure-submit-button">
+                        Submit Quiz →
+                    </button>
+
+                </div>
+
+            </form>
+
+            <div class="quiz-footer-actions">
+                <a href="{{ url_for('learning') }}">
+                    ← Back to Lessons
+                </a>
+
+                <a href="{{ url_for('dashboard') }}">
+                    Dashboard →
+                </a>
+            </div>
+
+            <div class="dashboard-footer">
+                © SecureLearn | Cybersecurity Learning Portal
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+</body>
+</html>

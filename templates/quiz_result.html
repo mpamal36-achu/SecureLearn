@@ -1,0 +1,287 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Results | SecureLearn</title>
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body class="dashboard-page quiz-result-page">
+
+{% set percentage = ((score / total) * 100)|round|int if total > 0 else 0 %}
+
+<div class="app-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+        <div class="sidebar-brand">
+            <div class="brand-icon">🛡️</div>
+            <div>
+                <h2>SecureLearn</h2>
+                <span>Cybersecurity Portal</span>
+            </div>
+        </div>
+
+        <div class="sidebar-label">MAIN MENU</div>
+
+        <nav class="sidebar-nav">
+
+            <a href="{{ url_for('dashboard') }}">
+                <span>▦</span> Dashboard
+            </a>
+
+            <a href="{{ url_for('learning') }}">
+                <span>📚</span> OWASP Learning
+            </a>
+
+            <a href="{{ url_for('quiz') }}" class="active">
+                <span>📝</span> Security Quiz
+            </a>
+
+            <a href="{{ url_for('progress') }}">
+                <span>📊</span> My Progress
+            </a>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <div class="sidebar-security">
+                <span>🟢</span>
+                <div>
+                    <strong>Secure Session</strong>
+                    <small>OTP Authenticated</small>
+                </div>
+            </div>
+
+            <form method="POST"
+                  action="{{ url_for('logout') }}">
+
+                <input type="hidden"
+                       name="csrf_token"
+                       value="{{ csrf_token() }}">
+
+                <button type="submit" class="sidebar-logout">
+                    ↪ Logout
+                </button>
+
+            </form>
+
+        </div>
+
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="dashboard-main">
+
+        <header class="topbar">
+
+            <div>
+                <span class="topbar-subtitle">
+                    CYBERSECURITY EDUCATION
+                </span>
+                <h2>Quiz Results</h2>
+            </div>
+
+            <div class="topbar-user">
+                <span class="result-topbar-badge">
+                    🏆 Assessment Complete
+                </span>
+            </div>
+
+        </header>
+
+        <div class="dashboard-content">
+
+            <!-- RESULT HERO -->
+            <section class="result-hero">
+
+                <div class="result-hero-icon">🏆</div>
+
+                <span class="result-hero-label">
+                    CYBERSECURITY KNOWLEDGE ASSESSMENT
+                </span>
+
+                <h1>Quiz Completed!</h1>
+
+                <p>
+                    You've completed the OWASP Top 10
+                    cybersecurity knowledge assessment.
+                </p>
+
+            </section>
+
+            <!-- SCORE CARD -->
+            <section class="result-score-card">
+
+                <div class="result-score-heading">
+                    <span>YOUR PERFORMANCE</span>
+                    <h2>Quiz Score</h2>
+                </div>
+
+                <div class="result-score-circle">
+
+                    <div class="result-score-inner">
+
+                        <strong>{{ percentage }}%</strong>
+
+                        <span>Overall Score</span>
+
+                    </div>
+
+                </div>
+
+                <div class="result-score-number">
+                    {{ score }} <span>/ {{ total }}</span>
+                </div>
+
+                <p class="result-score-description">
+                    Correct answers out of {{ total }} questions
+                </p>
+
+                <div class="result-progress-wrapper">
+
+                    <div class="result-progress-label">
+                        <span>Quiz Accuracy</span>
+                        <strong>{{ percentage }}%</strong>
+                    </div>
+
+                    <progress class="result-progress"
+                              value="{{ percentage }}"
+                              max="100"
+                              aria-label="Quiz accuracy">
+                        {{ percentage }}%
+                    </progress>
+
+                </div>
+
+                <!-- PERFORMANCE MESSAGE -->
+                {% if total > 0 and score == total %}
+
+                    <div class="result-feedback result-excellent">
+                        <span>🌟</span>
+                        <div>
+                            <h3>Excellent Performance!</h3>
+                            <p>
+                                All answers are correct!
+                                You've demonstrated strong
+                                knowledge of these security topics.
+                            </p>
+                        </div>
+                    </div>
+
+                {% elif total > 0 and score >= total / 2 %}
+
+                    <div class="result-feedback result-good">
+                        <span>👏</span>
+                        <div>
+                            <h3>Good Job!</h3>
+                            <p>
+                                You've made good progress.
+                                Keep studying the OWASP lessons
+                                to improve your knowledge.
+                            </p>
+                        </div>
+                    </div>
+
+                {% else %}
+
+                    <div class="result-feedback result-practice">
+                        <span>📚</span>
+                        <div>
+                            <h3>Keep Learning!</h3>
+                            <p>
+                                Every attempt helps you learn.
+                                Review the lessons and try again.
+                            </p>
+                        </div>
+                    </div>
+
+                {% endif %}
+
+            </section>
+
+            <!-- NEXT STEPS -->
+            <section class="result-next-steps">
+
+                <div class="result-next-heading">
+                    <span>WHAT'S NEXT?</span>
+                    <h2>Continue Your Learning Journey</h2>
+                </div>
+
+                <div class="result-action-grid">
+
+                    <a href="{{ url_for('quiz') }}"
+                       class="result-action-card">
+
+                        <div class="result-action-icon">🔄</div>
+
+                        <h3>Try Quiz Again</h3>
+
+                        <p>
+                            Retake the quiz and improve
+                            your score.
+                        </p>
+
+                        <span>Retry Quiz →</span>
+
+                    </a>
+
+                    <a href="{{ url_for('learning') }}"
+                       class="result-action-card">
+
+                        <div class="result-action-icon">📚</div>
+
+                        <h3>Review Lessons</h3>
+
+                        <p>
+                            Explore the OWASP Top 10
+                            learning materials.
+                        </p>
+
+                        <span>Start Learning →</span>
+
+                    </a>
+
+                    <a href="{{ url_for('progress') }}"
+                       class="result-action-card">
+
+                        <div class="result-action-icon">📊</div>
+
+                        <h3>My Progress</h3>
+
+                        <p>
+                            Check your completed lessons
+                            and learning progress.
+                        </p>
+
+                        <span>View Progress →</span>
+
+                    </a>
+
+                </div>
+
+            </section>
+
+            <div class="result-back-link">
+                <a href="{{ url_for('dashboard') }}">
+                    ← Back to Dashboard
+                </a>
+            </div>
+
+            <div class="dashboard-footer">
+                © SecureLearn | Cybersecurity Learning Portal
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+</body>
+</html>

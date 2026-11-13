@@ -1,0 +1,963 @@
+import os
+import sqlite3
+import secrets
+
+from dotenv import load_dotenv
+from flask import (
+    Flask, render_template, request,
+    redirect, url_for, session, flash
+)
+
+from flask_wtf.csrf import CSRFProtect
+
+from werkzeug.security import (
+    generate_password_hash,
+    check_password_hash
+)
+
+from database import (
+    create_database,
+    get_db_connection,
+    DATABASE_PATH
+)
+
+from otp import generate_otp, save_otp, verify_otp
+from email_service import send_otp_email
+
+
+# --------------------------------
+# FLASK CONFIGURATION
+# --------------------------------
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+load_dotenv(os.path.join(BASE_DIR, ".env"))
+
+print("DATABASE PATH:", DATABASE_PATH)
+print("DATABASE EXISTS:", os.path.exists(DATABASE_PATH))
+
+app = Flask(__name__)
+
+app.config["SECRET_KEY"] = (
+    os.getenv("FLASK_SECRET_KEY") or secrets.token_hex(32)
+)
+
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = False
+
+csrf = CSRFProtect(app)
+
+
+# --------------------------------
+# DATABASE FUNCTIONS
+# --------------------------------
+
+def get_connection():
+    return get_db_connection()
+
+
+def get_user_by_email(email):
+
+    connection = get_connection()
+
+    try:
+        return connection.execute(
+            "SELECT * FROM users WHERE email = ?",
+            (email,)
+        ).fetchone()
+
+    finally:
+        connection.close()
+
+
+def create_learning_tables():
+
+    connection = get_connection()
+
+    try:
+
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS learning_progress (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT NOT NULL,
+                lesson_id INTEGER NOT NULL,
+                completed INTEGER DEFAULT 0,
+                score INTEGER DEFAULT 0,
+                completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(email, lesson_id)
+            )
+        """)
+
+        connection.commit()
+
+    finally:
+        connection.close()
+
+
+# --------------------------------
+# OWASP TOP 10 LESSONS
+# --------------------------------
+
+LESSONS = [
+
+    {
+        "id": 1,
+        "title": "Broken Access Control",
+        "description": "Unauthorized access and permission management.",
+        "content": """
+Broken Access Control occurs when users can access
+resources or perform actions beyond their permissions.
+
+Prevention:
+1. Apply server-side authorization.
+2. Follow least privilege principles.
+3. Validate permissions for every request.
+4. Deny access by default.
+"""
+    },
+
+    {
+        "id": 2,
+        "title": "Cryptographic Failures",
+        "description": "Encryption and sensitive data protection.",
+        "content": """
+Cryptographic Failures occur when sensitive information
+is not properly protected.
+
+Prevention:
+1. Use strong encryption.
+2. Protect passwords using secure hashing.
+3. Use HTTPS.
+4. Never store sensitive data in plain text.
+"""
+    },
+
+    {
+        "id": 3,
+        "title": "Injection",
+        "description": "SQL injection and other injection risks.",
+        "content": """
+Injection vulnerabilities occur when untrusted input
+is interpreted as commands or queries.
+
+Prevention:
+1. Use parameterized SQL queries.
+2. Validate user input.
+3. Avoid unsafe query construction.
+4. Apply secure coding practices.
+"""
+    },
+
+    {
+        "id": 4,
+        "title": "Insecure Design",
+        "description": "Security problems caused by poor design.",
+        "content": """
+Insecure Design refers to missing or ineffective
+security controls during application design.
+
+Prevention:
+1. Perform threat modeling.
+2. Define security requirements.
+3. Apply secure design principles.
+4. Test security controls.
+"""
+    },
+
+    {
+        "id": 5,
+        "title": "Security Misconfiguration",
+        "description": "Incorrect security settings.",
+        "content": """
+Security Misconfiguration occurs when applications
+or servers use unsafe default settings.
+
+Prevention:
+1. Remove unnecessary services.
+2. Change default credentials.
+3. Disable debug mode in production.
+4. Keep configurations updated.
+"""
+    },
+
+    {
+        "id": 6,
+        "title": "Vulnerable and Outdated Components",
+        "description": "Risks from outdated software components.",
+        "content": """
+Using outdated libraries and frameworks may expose
+applications to known security vulnerabilities.
+
+Prevention:
+1. Update dependencies regularly.
+2. Remove unused packages.
+3. Monitor security advisories.
+4. Check dependencies for vulnerabilities.
+"""
+    },
+
+    {
+        "id": 7,
+        "title": "Identification and Authentication Failures",
+        "description": "Authentication and account security risks.",
+        "content": """
+Authentication Failures occur when identity verification
+and account management are not properly implemented.
+
+Prevention:
+1. Use secure password hashing.
+2. Implement multi-factor authentication.
+3. Apply login attempt limits.
+4. Use secure session management.
+"""
+    },
+
+    {
+        "id": 8,
+        "title": "Software and Data Integrity Failures",
+        "description": "Software and data integrity protection.",
+        "content": """
+Integrity Failures occur when software updates,
+code or data cannot be trusted.
+
+Prevention:
+1. Verify software integrity.
+2. Use trusted dependencies.
+3. Protect sensitive data.
+4. Validate update sources.
+"""
+    },
+
+    {
+        "id": 9,
+        "title": "Security Logging and Monitoring Failures",
+        "description": "Security event logging and monitoring.",
+        "content": """
+Logging and Monitoring Failures occur when security
+events are not properly recorded or monitored.
+
+Prevention:
+1. Record important security events.
+2. Monitor suspicious activities.
+3. Protect log files.
+4. Review security alerts regularly.
+"""
+    },
+
+    {
+        "id": 10,
+        "title": "Server-Side Request Forgery (SSRF)",
+        "description": "Risks involving server-side requests.",
+        "content": """
+SSRF occurs when an application makes server-side
+requests to unintended destinations.
+
+Prevention:
+1. Validate destination URLs.
+2. Restrict outgoing network requests.
+3. Use allowlists where appropriate.
+4. Apply network access controls.
+"""
+    }
+
+]
+
+
+# --------------------------------
+# QUIZ QUESTIONS
+# --------------------------------
+
+QUIZ_QUESTIONS = [
+
+    {
+        "question": "What does OWASP stand for?",
+        "options": [
+            "Open Web Application Security Project",
+            "Online Web Application System Program",
+            "Open Website Application Software",
+            "Online Website Security Platform"
+        ],
+        "answer": 0
+    },
+
+    {
+        "question": "What is Broken Access Control?",
+        "options": [
+            "Unauthorized access to resources",
+            "Slow internet connection",
+            "Hardware failure",
+            "Database backup"
+        ],
+        "answer": 0
+    },
+
+    {
+        "question": "Which method protects passwords?",
+        "options": [
+            "Plain text storage",
+            "Secure password hashing",
+            "Sharing passwords",
+            "Removing passwords"
+        ],
+        "answer": 1
+    },
+
+    {
+        "question": "Which helps prevent SQL Injection?",
+        "options": [
+            "Parameterized queries",
+            "Plain text passwords",
+            "Disabling authentication",
+            "Sharing database access"
+        ],
+        "answer": 0
+    },
+
+    {
+        "question": "What does HTTPS provide?",
+        "options": [
+            "Encrypted communication",
+            "Faster typing",
+            "More storage",
+            "Automatic backups"
+        ],
+        "answer": 0
+    },
+
+    {
+        "question": "What is MFA?",
+        "options": [
+            "Multi-Factor Authentication",
+            "Multiple File Access",
+            "Main Firewall Application",
+            "Managed File Access"
+        ],
+        "answer": 0
+    },
+
+    {
+        "question": "Why should software be updated?",
+        "options": [
+            "To fix known vulnerabilities",
+            "To remove security",
+            "To expose passwords",
+            "To disable monitoring"
+        ],
+        "answer": 0
+    },
+
+    {
+        "question": "What is security logging used for?",
+        "options": [
+            "Recording security events",
+            "Deleting accounts",
+            "Changing passwords",
+            "Increasing screen brightness"
+        ],
+        "answer": 0
+    },
+
+    {
+        "question": "What does SSRF stand for?",
+        "options": [
+            "Server-Side Request Forgery",
+            "Secure System Request Function",
+            "Server Software Recovery File",
+            "System Security Response Format"
+        ],
+        "answer": 0
+    },
+
+    {
+        "question": "What is the principle of least privilege?",
+        "options": [
+            "Give only necessary permissions",
+            "Give everyone administrator access",
+            "Disable all accounts",
+            "Share all passwords"
+        ],
+        "answer": 0
+    }
+
+]
+
+
+def get_public_questions():
+
+    return [
+        {
+            "index": index,
+            "question": question["question"],
+            "options": question["options"]
+        }
+        for index, question in enumerate(QUIZ_QUESTIONS)
+    ]
+
+
+# --------------------------------
+# HOME
+# --------------------------------
+
+@app.route("/")
+def home():
+
+    if session.get("user_email"):
+        return redirect(url_for("dashboard"))
+
+    return redirect(url_for("login"))
+
+
+# --------------------------------
+# REGISTER
+# --------------------------------
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+
+    if request.method == "POST":
+
+        name = request.form.get("name", "").strip()
+
+        email = request.form.get(
+            "email", ""
+        ).strip().lower()
+
+        password = request.form.get("password", "")
+
+        if not name or not email or not password:
+
+            flash("All fields are required.", "error")
+
+            return redirect(url_for("register"))
+
+        if len(password) < 8:
+
+            flash(
+                "Password must contain at least 8 characters.",
+                "error"
+            )
+
+            return redirect(url_for("register"))
+
+        if get_user_by_email(email):
+
+            flash("Email already registered.", "error")
+
+            return redirect(url_for("register"))
+
+        password_hash = generate_password_hash(password)
+
+        connection = get_connection()
+
+        try:
+
+            connection.execute("""
+                INSERT INTO users (name, email, password_hash)
+                VALUES (?, ?, ?)
+            """, (name, email, password_hash))
+
+            connection.commit()
+
+        except sqlite3.IntegrityError:
+
+            connection.rollback()
+
+            flash("Email already registered.", "error")
+
+            return redirect(url_for("register"))
+
+        except sqlite3.Error:
+
+            connection.rollback()
+
+            flash("Registration failed.", "error")
+
+            return redirect(url_for("register"))
+
+        finally:
+
+            connection.close()
+
+        flash(
+            "Registration successful. Please login.",
+            "success"
+        )
+
+        return redirect(url_for("login"))
+
+    return render_template("register.html")
+
+
+# --------------------------------
+# LOGIN
+# --------------------------------
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+
+    if request.method == "POST":
+
+        email = request.form.get(
+            "email", ""
+        ).strip().lower()
+
+        password = request.form.get("password", "")
+
+        print("\n========== LOGIN DEBUG ==========")
+
+        print("LOGIN ATTEMPT:", repr(email))
+
+        user = get_user_by_email(email)
+
+        if not user:
+
+            print("ERROR: User not found")
+
+            flash("Invalid email or password.", "error")
+
+            return redirect(url_for("login"))
+
+        print("SUCCESS: User found")
+
+        stored_hash = user["password_hash"]
+
+        print(
+            "HASH FORMAT:",
+            stored_hash.split("$")[0]
+            if "$" in stored_hash else "Unknown"
+        )
+
+        print("PASSWORD LENGTH:", len(password))
+
+        try:
+
+            password_valid = check_password_hash(
+                stored_hash,
+                password
+            )
+
+        except (ValueError, TypeError) as error:
+
+            print("PASSWORD HASH ERROR:", error)
+
+            password_valid = False
+
+        if not password_valid:
+
+            print("ERROR: Password does not match")
+
+            flash("Invalid email or password.", "error")
+
+            return redirect(url_for("login"))
+
+        print("SUCCESS: Password matched")
+
+        otp = str(generate_otp())
+
+        save_otp(email, otp)
+
+        if not send_otp_email(email, otp):
+
+            print("ERROR: OTP email sending failed")
+
+            flash(
+                "Unable to send OTP. Please try again.",
+                "error"
+            )
+
+            return redirect(url_for("login"))
+
+        session.clear()
+
+        session["pending_email"] = email
+
+        print("SUCCESS: OTP sent")
+
+        print("================================\n")
+
+        flash(
+            "OTP sent to your registered email.",
+            "success"
+        )
+
+        return redirect(url_for("verify"))
+
+    return render_template("login.html")
+
+
+# --------------------------------
+# VERIFY OTP
+# --------------------------------
+
+@app.route("/verify", methods=["GET", "POST"])
+def verify():
+
+    email = session.get("pending_email")
+
+    if not email:
+
+        return redirect(url_for("login"))
+
+    if request.method == "POST":
+
+        entered_otp = request.form.get(
+            "otp", ""
+        ).strip()
+
+        result = verify_otp(email, entered_otp)
+
+        if result == "OTP verified successfully!":
+
+            session.clear()
+
+            session["user_email"] = email
+
+            flash(
+                "OTP verification successful.",
+                "success"
+            )
+
+            return redirect(url_for("dashboard"))
+
+        flash(str(result), "error")
+
+    return render_template("verify.html")
+
+
+# --------------------------------
+# RESEND OTP
+# --------------------------------
+
+@app.route("/resend-otp", methods=["POST"])
+def resend_otp():
+
+    email = session.get("pending_email")
+
+    if not email:
+
+        return redirect(url_for("login"))
+
+    otp = str(generate_otp())
+
+    save_otp(email, otp)
+
+    if send_otp_email(email, otp):
+
+        flash(
+            "A new OTP has been sent.",
+            "success"
+        )
+
+    else:
+
+        flash(
+            "Unable to send OTP.",
+            "error"
+        )
+
+    return redirect(url_for("verify"))
+
+
+# --------------------------------
+# DASHBOARD
+# --------------------------------
+
+@app.route("/dashboard")
+def dashboard():
+
+    email = session.get("user_email")
+
+    if not email:
+
+        return redirect(url_for("login"))
+
+    user = get_user_by_email(email)
+
+    if not user:
+
+        session.clear()
+
+        return redirect(url_for("login"))
+
+    connection = get_connection()
+
+    try:
+
+        result = connection.execute("""
+            SELECT COUNT(*) AS total
+            FROM learning_progress
+            WHERE email = ? AND completed = 1
+        """, (email,)).fetchone()
+
+        completed_count = result["total"]
+
+    finally:
+
+        connection.close()
+
+    return render_template(
+        "dashboard.html",
+        name=user["name"],
+        completed_count=completed_count,
+        total_lessons=len(LESSONS)
+    )
+
+
+# --------------------------------
+# LEARNING
+# --------------------------------
+
+@app.route("/learning")
+def learning():
+
+    if not session.get("user_email"):
+
+        return redirect(url_for("login"))
+
+    return render_template(
+        "learning.html",
+        lessons=LESSONS
+    )
+
+
+# --------------------------------
+# LESSON DETAILS
+# --------------------------------
+
+@app.route("/lesson/<int:lesson_id>")
+def lesson_detail(lesson_id):
+
+    if not session.get("user_email"):
+
+        return redirect(url_for("login"))
+
+    lesson = next(
+        (
+            item for item in LESSONS
+            if item["id"] == lesson_id
+        ),
+        None
+    )
+
+    if lesson is None:
+
+        return "Lesson not found", 404
+
+    return render_template(
+        "lesson_detail.html",
+        lesson=lesson
+    )
+
+
+# --------------------------------
+# COMPLETE LESSON
+# --------------------------------
+
+@app.route(
+    "/complete-lesson/<int:lesson_id>",
+    methods=["POST"]
+)
+def complete_lesson(lesson_id):
+
+    email = session.get("user_email")
+
+    if not email:
+
+        return redirect(url_for("login"))
+
+    lesson = next(
+        (
+            item for item in LESSONS
+            if item["id"] == lesson_id
+        ),
+        None
+    )
+
+    if lesson is None:
+
+        return "Lesson not found", 404
+
+    connection = get_connection()
+
+    try:
+
+        connection.execute("""
+            INSERT INTO learning_progress
+                (email, lesson_id, completed)
+            VALUES (?, ?, 1)
+
+            ON CONFLICT(email, lesson_id)
+            DO UPDATE SET
+                completed = 1,
+                completed_at = CURRENT_TIMESTAMP
+
+        """, (email, lesson_id))
+
+        connection.commit()
+
+    finally:
+
+        connection.close()
+
+    flash(
+        "Lesson marked as completed.",
+        "success"
+    )
+
+    return redirect(url_for("learning"))
+
+
+# --------------------------------
+# QUIZ
+# --------------------------------
+
+@app.route("/quiz", methods=["GET", "POST"])
+def quiz():
+
+    if not session.get("user_email"):
+
+        return redirect(url_for("login"))
+
+    if request.method == "POST":
+
+        score = 0
+
+        for index, question in enumerate(QUIZ_QUESTIONS):
+
+            submitted_answer = request.form.get(
+                f"question_{index}"
+            )
+
+            if submitted_answer is None:
+                continue
+
+            try:
+
+                answer_index = int(submitted_answer)
+
+            except ValueError:
+
+                continue
+
+            if answer_index == question["answer"]:
+
+                score += 1
+
+        session["quiz_score"] = score
+
+        return redirect(url_for("quiz_result"))
+
+    return render_template(
+        "quiz.html",
+        questions=get_public_questions()
+    )
+
+
+# --------------------------------
+# QUIZ RESULT
+# --------------------------------
+
+@app.route("/quiz-result")
+def quiz_result():
+
+    if not session.get("user_email"):
+
+        return redirect(url_for("login"))
+
+    score = session.get("quiz_score")
+
+    if score is None:
+
+        return redirect(url_for("quiz"))
+
+    return render_template(
+        "quiz_result.html",
+        score=score,
+        total=len(QUIZ_QUESTIONS)
+    )
+
+
+# --------------------------------
+# PROGRESS
+# --------------------------------
+
+@app.route("/progress")
+def progress():
+
+    email = session.get("user_email")
+
+    if not email:
+
+        return redirect(url_for("login"))
+
+    connection = get_connection()
+
+    try:
+
+        completed_rows = connection.execute("""
+            SELECT lesson_id
+            FROM learning_progress
+            WHERE email = ? AND completed = 1
+        """, (email,)).fetchall()
+
+    finally:
+
+        connection.close()
+
+    completed_ids = {
+        row["lesson_id"]
+        for row in completed_rows
+    }
+
+    completed_lessons = [
+        lesson for lesson in LESSONS
+        if lesson["id"] in completed_ids
+    ]
+
+    completed_count = len(completed_lessons)
+
+    total_lessons = len(LESSONS)
+
+    percentage = int(
+        (completed_count / total_lessons) * 100
+    )
+
+    return render_template(
+        "progress.html",
+        completed_lessons=completed_lessons,
+        completed_count=completed_count,
+        total_lessons=total_lessons,
+        percentage=percentage
+    )
+
+
+# --------------------------------
+# LOGOUT
+# --------------------------------
+
+@app.route("/logout", methods=["POST"])
+def logout():
+
+    session.clear()
+
+    flash(
+        "You have been logged out.",
+        "success"
+    )
+
+    return redirect(url_for("login"))
+
+
+# --------------------------------
+# START APPLICATION
+# --------------------------------
+
+create_database()
+
+create_learning_tables()
+
+
+if __name__ == "__main__":
+
+    app.run(debug=False)

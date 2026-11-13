@@ -1,0 +1,303 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Progress | SecureLearn</title>
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body class="dashboard-page progress-page">
+
+<div class="app-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+        <div class="sidebar-brand">
+            <div class="brand-icon">🛡️</div>
+            <div>
+                <h2>SecureLearn</h2>
+                <span>Cybersecurity Portal</span>
+            </div>
+        </div>
+
+        <div class="sidebar-label">MAIN MENU</div>
+
+        <nav class="sidebar-nav">
+
+            <a href="{{ url_for('dashboard') }}">
+                <span>▦</span> Dashboard
+            </a>
+
+            <a href="{{ url_for('learning') }}">
+                <span>📚</span> OWASP Learning
+            </a>
+
+            <a href="{{ url_for('quiz') }}">
+                <span>📝</span> Security Quiz
+            </a>
+
+            <a href="{{ url_for('progress') }}" class="active">
+                <span>📊</span> My Progress
+            </a>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <div class="sidebar-security">
+                <span>🟢</span>
+                <div>
+                    <strong>Secure Session</strong>
+                    <small>OTP Authenticated</small>
+                </div>
+            </div>
+
+            <form method="POST"
+                  action="{{ url_for('logout') }}">
+
+                <input type="hidden"
+                       name="csrf_token"
+                       value="{{ csrf_token() }}">
+
+                <button type="submit" class="sidebar-logout">
+                    ↪ Logout
+                </button>
+
+            </form>
+
+        </div>
+
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="dashboard-main">
+
+        <header class="topbar">
+
+            <div>
+                <span class="topbar-subtitle">
+                    CYBERSECURITY EDUCATION
+                </span>
+                <h2>My Learning Progress</h2>
+            </div>
+
+            <div class="topbar-user">
+                <span class="progress-topbar-badge">
+                    📊 Learning Tracker
+                </span>
+            </div>
+
+        </header>
+
+        <div class="dashboard-content">
+
+            <!-- PROGRESS HERO -->
+            <section class="progress-hero">
+
+                <div class="progress-hero-text">
+
+                    <span class="progress-hero-label">
+                        ✦ YOUR LEARNING JOURNEY
+                    </span>
+
+                    <h1>Track Your Progress</h1>
+
+                    <p>
+                        Monitor your completed OWASP lessons,
+                        track your cybersecurity knowledge,
+                        and continue building your skills.
+                    </p>
+
+                    <a href="{{ url_for('learning') }}"
+                       class="progress-hero-button">
+                        Continue Learning →
+                    </a>
+
+                </div>
+
+                <div class="progress-hero-art">
+                    📊
+                </div>
+
+            </section>
+
+            <!-- STATISTICS -->
+            <section class="progress-stats-grid">
+
+                <div class="progress-stat-card">
+                    <div class="progress-stat-icon">📚</div>
+                    <span>Total Lessons</span>
+                    <strong>{{ total_lessons }}</strong>
+                </div>
+
+                <div class="progress-stat-card">
+                    <div class="progress-stat-icon">✅</div>
+                    <span>Completed Lessons</span>
+                    <strong>{{ completed_count }}</strong>
+                </div>
+
+                <div class="progress-stat-card">
+                    <div class="progress-stat-icon">🎯</div>
+                    <span>Learning Progress</span>
+                    <strong>{{ percentage }}%</strong>
+                </div>
+
+            </section>
+
+            <!-- OVERALL PROGRESS -->
+            <section class="progress-overview-card">
+
+                <div class="progress-section-heading">
+                    <div>
+                        <span>COURSE COMPLETION</span>
+                        <h2>Overall Learning Progress</h2>
+                    </div>
+
+                    <div class="progress-completion-label">
+                        {{ completed_count }} / {{ total_lessons }}
+                    </div>
+                </div>
+
+                <div class="progress-large-percentage">
+                    {{ percentage }}%
+                </div>
+
+                <progress
+                    class="progress-main-bar"
+                    value="{{ percentage }}"
+                    max="100"
+                    aria-label="Overall learning progress">
+                    {{ percentage }}%
+                </progress>
+
+                <div class="progress-bar-footer">
+                    <span>0% Started</span>
+                    <span>100% Completed</span>
+                </div>
+
+                {% if total_lessons > 0 and completed_count >= total_lessons %}
+                    <div class="progress-message progress-success">
+                        🎉 Congratulations! You've completed all lessons.
+                    </div>
+                {% elif completed_count > 0 %}
+                    <div class="progress-message progress-active">
+                        🚀 Great progress! Keep learning to complete the course.
+                    </div>
+                {% else %}
+                    <div class="progress-message progress-start">
+                        📖 Start your first lesson to begin tracking progress.
+                    </div>
+                {% endif %}
+
+            </section>
+
+            <!-- COMPLETED TOPICS -->
+            <section class="progress-topics-section">
+
+                <div class="progress-section-heading">
+                    <div>
+                        <span>YOUR ACHIEVEMENTS</span>
+                        <h2>Completed Topics</h2>
+                    </div>
+
+                    <div class="progress-completion-label">
+                        {{ completed_count }} Completed
+                    </div>
+                </div>
+
+                {% if completed_lessons %}
+
+                <div class="progress-topic-grid">
+
+                    {% for lesson in completed_lessons %}
+
+                    <div class="progress-topic-card">
+
+                        <div class="progress-topic-check">
+                            ✓
+                        </div>
+
+                        <div class="progress-topic-info">
+                            <span>COMPLETED LESSON</span>
+                            <h3>{{ lesson.title }}</h3>
+                            <p>
+                                You've completed this
+                                cybersecurity learning topic.
+                            </p>
+                        </div>
+
+                        <div class="progress-topic-badge">
+                            Completed
+                        </div>
+
+                    </div>
+
+                    {% endfor %}
+
+                </div>
+
+                {% else %}
+
+                <div class="progress-empty-state">
+                    <div>📚</div>
+                    <h3>No Completed Lessons Yet</h3>
+                    <p>
+                        Start exploring OWASP security lessons
+                        and your achievements will appear here.
+                    </p>
+                    <a href="{{ url_for('learning') }}">
+                        Explore Lessons →
+                    </a>
+                </div>
+
+                {% endif %}
+
+            </section>
+
+            <!-- CONTINUE LEARNING -->
+            <section class="progress-continue-card">
+
+                <div class="progress-continue-icon">
+                    🛡️
+                </div>
+
+                <div>
+                    <h2>Keep Building Your Security Skills</h2>
+                    <p>
+                        Explore more OWASP lessons and test your
+                        knowledge with the cybersecurity quiz.
+                    </p>
+                </div>
+
+                <a href="{{ url_for('quiz') }}">
+                    Take Quiz →
+                </a>
+
+            </section>
+
+            <div class="progress-footer-links">
+                <a href="{{ url_for('learning') }}">
+                    ← Continue Learning
+                </a>
+
+                <a href="{{ url_for('dashboard') }}">
+                    Back to Dashboard →
+                </a>
+            </div>
+
+            <div class="dashboard-footer">
+                © SecureLearn | Cybersecurity Learning Portal
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+</body>
+</html>

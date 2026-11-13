@@ -1,0 +1,160 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Account | SecureLearn</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body class="register-page">
+
+<div class="register-layout">
+
+    <!-- LEFT BRAND PANEL -->
+    <section class="register-brand-panel">
+
+        <div class="register-brand">
+            <div class="register-brand-icon">🛡️</div>
+            <div>
+                <h2>SecureLearn</h2>
+                <span>Cybersecurity Learning Portal</span>
+            </div>
+        </div>
+
+        <div class="register-hero">
+
+            <div class="register-eyebrow">
+                ✦ START YOUR SECURITY JOURNEY
+            </div>
+
+            <div class="register-hero-icon">🔐</div>
+
+            <h1>Build Your Skills.<br>Protect Your Future.</h1>
+
+            <p>
+                Join SecureLearn and explore cybersecurity
+                with email OTP authentication, OWASP lessons,
+                and interactive security quizzes.
+            </p>
+
+            <div class="register-feature">
+                <span>✓</span> Secure Account Registration
+            </div>
+
+            <div class="register-feature">
+                <span>✓</span> Email OTP Authentication
+            </div>
+
+            <div class="register-feature">
+                <span>✓</span> OWASP Top 10 Learning
+            </div>
+
+            <div class="register-feature">
+                <span>✓</span> Track Your Learning Progress
+            </div>
+
+        </div>
+
+        <div class="register-panel-footer">
+            SecureLearn • Cybersecurity Education
+        </div>
+
+    </section>
+
+    <!-- RIGHT REGISTRATION PANEL -->
+    <main class="register-form-panel">
+
+        <div class="register-form-card">
+
+            <div class="register-form-icon">👤</div>
+
+            <span class="register-step">CREATE YOUR ACCOUNT</span>
+
+            <h1>Get Started</h1>
+
+            <p class="register-subtitle">
+                Create an account to access your secure
+                cybersecurity learning dashboard.
+            </p>
+
+            <!-- FLASH MESSAGES -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endwith %}
+
+            <!-- REGISTRATION FORM -->
+            <form method="POST" action="{{ url_for('register') }}">
+
+                <input type="hidden"
+                       name="csrf_token"
+                       value="{{ csrf_token() }}">
+
+                <label for="name">Full Name</label>
+
+                <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    placeholder="Enter your full name"
+                    autocomplete="name"
+                    required
+                >
+
+                <label for="email">Email Address</label>
+
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    placeholder="Enter your email address"
+                    autocomplete="email"
+                    required
+                >
+
+                <label for="password">Create Password</label>
+
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    placeholder="Minimum 8 characters"
+                    autocomplete="new-password"
+                    minlength="8"
+                    required
+                >
+
+                <p class="register-password-hint">
+                    Use a unique password with at least 8 characters.
+                </p>
+
+                <button type="submit" class="register-submit">
+                    Create Secure Account →
+                </button>
+
+            </form>
+
+            <div class="register-login">
+                Already have an account?
+                <a href="{{ url_for('login') }}">
+                    Sign In
+                </a>
+            </div>
+
+            <div class="register-security-note">
+                🛡️ Your password is securely hashed before storage.
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+</body>
+</html>
